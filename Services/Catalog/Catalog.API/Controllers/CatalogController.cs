@@ -44,7 +44,7 @@ namespace Catalog.API.Controllers
         {
             var query = new GetAllProductQuery();
             var result = await _mediator.Send(query);
-            return Ok(result);
+            return Ok(result);  
         }
         [HttpGet]
         [Route("GetAllBrands")]

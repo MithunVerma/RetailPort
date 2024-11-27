@@ -1,6 +1,7 @@
 ﻿
 using Catalog.Core.Entities;
 using Catalog.Core.Repositories;
+using Catalog.Core.Specs;
 using Catalog.Infrastructure.Data;
 using MongoDB.Driver;
 
@@ -17,9 +18,33 @@ namespace Catalog.Infrastructure.Repositories
         {
             return await _catalogContext.Products.Find(p  => p.Id == id).FirstOrDefaultAsync();
         }
-        public async Task<IEnumerable<Product>> GetProducts()
+        public async Task<Pagination<Product>> GetProducts(CatalagSpecParams catalagSpecParams)
         {
-            return await _catalogContext.Products.Find(p => true).ToListAsync();
+            var builder = Builders<Product>.Filter;
+            var filter = builder.Empty;
+            if(!string.IsNullOrEmpty(catalagSpecParams.Search))
+            {
+                filter = filter & builder.Where(p=> p.Name.ToLower().Contains(catalagSpecParams.Search.ToLower()));
+            }
+            if (!string.IsNullOrEmpty(catalagSpecParams.BrandId))
+            {
+                var brandFilter = filter & builder.Eq(p => p.Brands.Id, catalagSpecParams.BrandId);
+            }
+            if (!string.IsNullOrEmpty(catalagSpecParams.TypeId))
+            {
+                var typeFilter = filter & builder.Eq(p => p.Types.Id, catalagSpecParams.TypeId);
+            }
+            var totalItems = await _catalogContext.Products.CountDocumentsAsync(filter);
+            var data = await _catalogContext.Products.Find(filter)
+                                                     .Skip((catalagSpecParams.PageIndex-1) * catalagSpecParams.PageSize)
+                                                     .Limit(catalagSpecParams.PageSize)
+                                                     .ToListAsync();
+            return new Pagination<Product>(
+                  catalagSpecParams.PageIndex,
+                  catalagSpecParams.PageSize,
+                  (int)totalItems,
+                  data
+                  );
         }
         public async Task<IEnumerable<Product>> GetProductByBrand(string name)
         {
